@@ -1,0 +1,2 @@
+# No external Python packages are needed -- standard library only.
+# This file exists so Render's Python build has something to install.

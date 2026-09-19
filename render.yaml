@@ -1,0 +1,22 @@
+# Render blueprint for the FREE web-service deployment of your notifier.
+# Push this file to the repo root along with notifier_web.py,
+# messages.json and requirements.txt, then on render.com:
+#   New + -> Blueprint -> connect the repo.
+# After it deploys, set the NTFY_TOPIC environment variable in the
+# dashboard (Environment tab) to your ntfy topic name, then redeploy.
+#
+# IMPORTANT: keep the service awake! Free web services sleep after
+# 15 minutes with no traffic. Add your service URL to cron-job.org
+# (free) on a 10-minute schedule so it never sleeps.
+services:
+  - type: web
+    name: phone-notifier
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python notifier_web.py
+    envVars:
+      - key: NTFY_TOPIC
+        sync: false          # you'll be prompted to fill this in
+      - key: PYTHON_VERSION
+        value: 3.12.4

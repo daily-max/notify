@@ -1,0 +1,27 @@
+[
+  {
+    "time": "07:30",
+    "days": "everyday",
+    "title": "Good morning",
+    "text": "Time for your morning walk!",
+    "priority": "high"
+  },
+  {
+    "time": "13:00",
+    "days": "weekdays",
+    "title": "Lunch break",
+    "text": "Step away from the screen and eat something.",
+    "priority": "default"
+  },
+  {
+    "time": "21:30",
+    "days": [
+      "mon",
+      "wed",
+      "fri"
+    ],
+    "title": "Medicine",
+    "text": "Take your evening tablet.",
+    "priority": "urgent"
+  }
+]
