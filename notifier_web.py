@@ -22,6 +22,13 @@ Deploying (free):
      cron-job.org (free) with a 10-minute schedule, so the service
      never sleeps.
 
+Startup message:
+  Every time the service boots (deploy, restart, crash recovery), a
+  "Notifier started" push is sent to your phone -- so you always know
+  when it went down and came back. Customize the text with the
+  START_MESSAGE environment variable, or set SEND_STARTUP_MESSAGE=0
+  to disable it.
+
 Notification topic:
   Set the NTFY_TOPIC environment variable in the Render dashboard to the
   topic name you subscribed to in the ntfy phone app. (There is a default
@@ -38,6 +45,7 @@ import json
 import os
 import pathlib
 import threading
+import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
@@ -50,6 +58,10 @@ NTFY_SERVER = "https://ntfy.sh"
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "my-alerts-x7k2pq")  # <-- CHANGE
 MESSAGES_FILE = pathlib.Path(__file__).resolve().parent / "messages.json"
 PORT = int(os.environ.get("PORT", "10000"))
+
+STARTUP_MESSAGE = os.environ.get(
+    "START_MESSAGE", "Notifier started - your schedule is live.")
+SEND_STARTUP_MESSAGE = os.environ.get("SEND_STARTUP_MESSAGE", "1") != "0"
 
 DAY_ALIASES = {
     "mon": "monday", "tue": "tuesday", "wed": "wednesday",
@@ -112,7 +124,15 @@ def day_matches(days_setting, today_name):
 
 def run_scheduler():
     """Check every 20 seconds and fire messages whose time has arrived."""
-    messages = load_messages()
+    messages = None
+    while messages is None:          # keep retrying if messages.json is bad
+        try:
+            messages = load_messages()
+        except Exception as exc:  # noqa: BLE001 - report and retry
+            print(f"[scheduler] could not load {MESSAGES_FILE.name}: {exc}"
+                  f" -- retrying in 60 seconds")
+            time.sleep(60)
+
     print(f"[scheduler] loaded {len(messages)} message(s), "
           f"topic '{NTFY_TOPIC}', timezone Asia/Kolkata")
 
@@ -136,8 +156,7 @@ def run_scheduler():
                 send_notification(msg["text"], msg["title"], msg["priority"])
                 fired.add(key)
 
-        import time as _time
-        _time.sleep(20)
+        time.sleep(20)
 
 
 # ------------------------------------------------------------------
@@ -161,6 +180,14 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 
 def main():
+    if SEND_STARTUP_MESSAGE:
+        started_at = datetime.datetime.now(IST).strftime("%d %b %Y, %H:%M")
+        send_notification(
+            f"{STARTUP_MESSAGE} (started {started_at} IST)",
+            title="Notifier started",
+            tags="rocket",
+        )
+
     threading.Thread(target=run_scheduler, daemon=True).start()
 
     server = ThreadingHTTPServer(("0.0.0.0", PORT), HealthHandler)
