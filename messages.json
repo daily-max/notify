@@ -23,5 +23,12 @@
     "title": "Medicine",
     "text": "Take your evening tablet.",
     "priority": "urgent"
+  },
+  {
+    "time": "11:00",
+    "title": "eat",
+    "text": "stay hydrate",
+    "priority": "default",
+    "days": "everyday"
   }
 ]
