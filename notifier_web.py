@@ -3,8 +3,11 @@
 Notifier Web v3 -- message scheduler + admin interface on Render's FREE plan.
 
 What's new in v3:
-  * A web interface at your service URL: add, edit, delete and test-fire
+  * A web interface at /ui: add, edit, delete and test-fire
     messages from your phone or laptop -- no code edits needed.
+    (The root URL / returns a tiny status line instead, so keep-alive
+    pingers like cron-job.org -- which reject responses over ~1 kB --
+    never see a "response too big" error.)
   * The scheduler auto-reloads messages.json when it changes.
   * OPTIONAL GitHub persistence: Render free instances have ephemeral
     storage, so UI edits would be lost on every restart/redeploy. If you
@@ -16,6 +19,9 @@ Environment variables
   NTFY_TOPIC          ntfy topic to push to (required)
   START_MESSAGE       startup push text (default "Notifier started - ...")
   SEND_STARTUP_MESSAGE  set to 0 to disable the startup push
+  RUN_SCHEDULER       set to 0 for editor mode -- the interface only
+                      manages messages.json (with GitHub persistence);
+                      use this when a Render cron job does the sending
   ADMIN_PASSWORD      if set, the interface asks for this password
   GITHUB_REPO         "user/repo" -- enable GitHub persistence
   GITHUB_TOKEN        a fine-grained PAT with Contents: Read/Write on it
@@ -56,6 +62,7 @@ PORT = int(os.environ.get("PORT", "10000"))
 STARTUP_MESSAGE = os.environ.get(
     "START_MESSAGE", "Notifier started - your schedule is live.")
 SEND_STARTUP_MESSAGE = os.environ.get("SEND_STARTUP_MESSAGE", "1") != "0"
+RUN_SCHEDULER = os.environ.get("RUN_SCHEDULER", "1") != "0"
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD") or None
 
 GITHUB_REPO = os.environ.get("GITHUB_REPO") or None          # "user/repo"
@@ -429,7 +436,7 @@ def render_error(message):
 <title>Error</title><style>{STYLE}</style></head>
 <body><div class="wrap"><h2>Something went wrong</h2>
 <p class="note">{html.escape(message)}</p>
-<p><a href="/">&larr; Back to the schedule</a></p>
+<p><a href="/ui">&larr; Back to the schedule</a></p>
 </div></body></html>"""
 
 
@@ -509,7 +516,7 @@ class AdminHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _redirect(self, flash=None, flash_err=False):
-        target = "/"
+        target = "/ui"
         if flash:
             target += ("?err=1&msg=" if flash_err else
                        "?msg=") + urllib.parse.quote(flash)
@@ -528,6 +535,12 @@ class AdminHandler(BaseHTTPRequestHandler):
             return
         try:
             if parsed.path in ("/", "/index.html"):
+                # tiny status line -- keep-alive pingers (cron-job.org)
+                # reject responses over ~1 kB, so the root must stay small
+                return self._respond(
+                    "Notifier is running. Dashboard at /ui\n",
+                    content_type="text/plain")
+            if parsed.path == "/ui":
                 qs = urllib.parse.parse_qs(parsed.query)
                 flash = qs.get("msg", [None])[0]
                 flash_err = "err" in qs
@@ -622,7 +635,11 @@ def main():
             tags="rocket",
         )
 
-    threading.Thread(target=run_scheduler, daemon=True).start()
+    if RUN_SCHEDULER:
+        threading.Thread(target=run_scheduler, daemon=True).start()
+    else:
+        print("[scheduler] disabled (editor mode: this service only "
+              "manages the schedule; another component sends it)")
 
     server = ThreadingHTTPServer(("0.0.0.0", PORT), AdminHandler)
     print(f"[web] interface + scheduler listening on port {PORT}")
