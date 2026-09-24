@@ -30,5 +30,12 @@
     "text": "stay hydrate",
     "priority": "default",
     "days": "everyday"
+  },
+  {
+    "time": "20:00",
+    "title": "drink water",
+    "text": "stay hydrate",
+    "priority": "default",
+    "days": "everyday"
   }
 ]
