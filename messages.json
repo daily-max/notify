@@ -47,5 +47,12 @@
     "title": "Wind down",
     "text": "Screens off soon - time to get ready for bed.",
     "priority": "default"
+  },
+  {
+    "time": "22:45",
+    "title": "Tomorrow Plan",
+    "text": "basic need, imp task, special occation",
+    "priority": "default",
+    "days": "everyday"
   }
 ]
