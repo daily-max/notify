@@ -1,48 +1,51 @@
 [
   {
-    "time": "07:30",
+    "time": "07:00",
     "days": "everyday",
     "title": "Good morning",
+    "text": "Time to wake up and start the day.",
+    "priority": "high"
+  },
+  {
+    "time": "07:30",
+    "days": "everyday",
+    "title": "Morning walk",
     "text": "Time for your morning walk!",
     "priority": "high"
   },
   {
-    "time": "13:00",
-    "days": "weekdays",
-    "title": "Lunch break",
-    "text": "Step away from the screen and eat something.",
+    "time": "10:30",
+    "days": "everyday",
+    "title": "Drink water",
+    "text": "Stay hydrated - have a glass of water.",
     "priority": "default"
   },
   {
-    "time": "21:30",
-    "days": [
-      "mon",
-      "wed",
-      "fri"
-    ],
-    "title": "Medicine",
-    "text": "Take your evening tablet.",
-    "priority": "urgent"
+    "time": "15:30",
+    "days": "everyday",
+    "title": "Stretch & hydrate",
+    "text": "Stand up, stretch, and drink some water.",
+    "priority": "default"
   },
   {
-    "time": "20:10",
-    "title": "drink water",
-    "text": "stay hydrate",
-    "priority": "default",
-    "days": "everyday"
+    "time": "17:30",
+    "days": "everyday",
+    "title": "Evening break",
+    "text": "Take a short walk and have some water.",
+    "priority": "default"
   },
   {
     "time": "20:00",
-    "title": "drink water",
-    "text": "stay hydrate",
-    "priority": "default",
-    "days": "everyday"
+    "days": "everyday",
+    "title": "Drink water",
+    "text": "Stay hydrated - one more glass before the evening winds down.",
+    "priority": "default"
   },
   {
-    "time": "11:30",
-    "title": "drink_water",
-    "text": "stay hydrate",
-    "priority": "default",
-    "days": "everyday"
+    "time": "22:30",
+    "days": "everyday",
+    "title": "Wind down",
+    "text": "Screens off soon - time to get ready for bed.",
+    "priority": "default"
   }
 ]
