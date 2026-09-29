@@ -106,6 +106,35 @@ def send_notification(text, title="Reminder", priority="default",
         return False
 
 
+ZENQUOTES_URL = "https://zenquotes.io/api/today"
+
+
+def fetch_quote():
+    """Quote of the day from zenquotes.io (free, no key needed).
+
+    Returns the formatted quote text, or None on any failure.
+    """
+    try:
+        request = urllib.request.Request(
+            ZENQUOTES_URL, headers={"User-Agent": "phone-notifier"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        return f'\"{data[0]["q"]}\" - {data[0]["a"]}'
+    except Exception as exc:  # noqa: BLE001 - the quote is best-effort
+        print(f"[quote] could not fetch quote of the day: {exc}")
+        return None
+
+
+def message_text(msg):
+    """Message text, with the daily quote appended if requested."""
+    text = msg["text"]
+    if msg.get("quote"):
+        quote = fetch_quote()
+        if quote:
+            text = f"{text}\n\n{quote}"
+    return text
+
+
 # ------------------------------------------------------------------
 # GitHub persistence (optional)
 # ------------------------------------------------------------------
@@ -195,6 +224,22 @@ def load_messages():
         msg.setdefault("title", "Reminder")
         msg.setdefault("priority", "default")
         msg.setdefault("days", "everyday")
+        if "date" in msg:
+            d = str(msg["date"])
+            if re.fullmatch(r"\d{2}-\d{2}", d):            # MM-DD, yearly
+                year, mm, dd = "2024", d[:2], d[3:]           # 2024: leap year
+            elif re.fullmatch(r"\d{4}-\d{2}-\d{2}", d):     # one-time
+                year, mm, dd = d[:4], d[5:7], d[8:]
+            else:
+                raise ValueError(
+                    f"Message #{index + 1} has a bad 'date' field "
+                    f"(expected MM-DD or YYYY-MM-DD): {msg['date']!r}.")
+            try:
+                datetime.date(int(year), int(mm), int(dd))
+            except ValueError:
+                raise ValueError(
+                    f"Message #{index + 1} has a 'date' that is not a real "
+                    f"calendar date: {msg['date']!r}.")
     return messages
 
 
@@ -226,6 +271,25 @@ def describe_days(days_setting):
         return {"everyday": "Every day", "weekdays": "Weekdays",
                 "weekends": "Weekends"}.get(days_setting, days_setting)
     return ", ".join(SHORT_DAY.get(d, d) for d in days_setting)
+
+
+MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def describe_when(msg):
+    """Human label for when a message fires.
+
+    'Yearly on 14 Mar' / 'Once on 14 Mar 2027' / weekday description."""
+    date_value = msg.get("date")
+    if date_value:
+        d = str(date_value)
+        if len(d) == 10:                      # YYYY-MM-DD -> one-time
+            yyyy, mm, dd = d.split("-")
+            return (f"Once on {int(dd)} {MONTH_NAMES[int(mm) - 1]} {yyyy}")
+        mm, dd = d.split("-")
+        return f"Yearly on {int(dd)} {MONTH_NAMES[int(mm) - 1]}"
+    return describe_days(msg["days"])
 
 
 # ------------------------------------------------------------------
@@ -276,9 +340,15 @@ def run_scheduler():
 
         for index, msg in enumerate(messages):
             key = (index, msg["time"])
-            if (msg["time"] == hhmm and key not in fired
-                    and day_matches(msg["days"], today_name)):
-                send_notification(msg["text"], msg["title"], msg["priority"])
+            if "date" in msg:   # dated: MM-DD yearly, YYYY-MM-DD once
+                d = str(msg["date"])
+                day_ok = (now.strftime("%Y-%m-%d") == d if len(d) == 10
+                          else now.strftime("%m-%d") == d)
+            else:
+                day_ok = day_matches(msg["days"], today_name)
+            if msg["time"] == hhmm and key not in fired and day_ok:
+                send_notification(message_text(msg), msg["title"],
+                                  msg["priority"])
                 fired.add(key)
 
         time.sleep(20)
@@ -317,6 +387,9 @@ button:hover{background:#1d4ed8;}
 .linkbtn{background:none;border:none;color:#2563eb;padding:4px 6px;
 margin:0;cursor:pointer;font-size:.85rem;text-decoration:underline;}
 .danger{color:#dc2626;}
+input[type=checkbox]{width:auto;margin:0;}
+.checkline{display:flex;align-items:center;gap:8px;font-weight:400;
+cursor:pointer;margin-top:14px;}
 .err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;
 padding:10px 12px;border-radius:6px;margin-bottom:14px;font-size:.9rem;}
 .ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;
@@ -338,9 +411,9 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
         rows.append(f"""
 <tr>
  <td class="time">{e(m['time'])}</td>
- <td>{e(describe_days(m['days']))}</td>
+ <td>{e(describe_when(m))}</td>
  <td><span class="title">{e(m['title'])}</span><br>
-     <span class="note">{e(m['text'])}</span></td>
+     <span class="note">{e(m['text'])}</span>{'<br><span class="note">+ daily quote (zenquotes.io)</span>' if m.get('quote') else ''}</td>
  <td class="{prio_cls}">{e(m['priority'])}</td>
  <td style="white-space:nowrap">
    <form method="post" action="/test" style="display:inline">
@@ -422,10 +495,21 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
    <input name="days_custom" value="{e(days_custom)}"
      placeholder="mon, wed, fri"></div>
  </div>
+ <div class="row">
+  <div><label>Date (optional)</label>
+   <input name="date" value="{e(fm.get('date', ''))}" maxlength="10"
+     placeholder="MM-DD or YYYY-MM-DD"></div>
+ </div>
+ <p class="note">MM-DD sends yearly on that date; YYYY-MM-DD sends once
+ on that exact date and never again until you change it. The Days
+ setting is ignored when a date is set; leave it empty for a weekly
+ schedule.</p>
  <label>Title (bold heading in the notification)</label>
  <input name="title" value="{e(fm['title'])}" maxlength="60">
  <label>Message text</label>
  <input name="text" value="{e(fm['text'])}" required maxlength="300">
+ <label class="checkline"><input type="checkbox" name="quote" value="1"{' checked' if fm.get('quote') else ''}>
+  Append the quote of the day (from zenquotes.io)</label>
  <button type="submit">Save message</button>
 </form>
 </div></body></html>"""
@@ -478,6 +562,28 @@ def form_to_message(form):
         if mode not in ("everyday", "weekdays", "weekends"):
             mode = "everyday"
         m["days"] = mode
+
+    date_value = form.get("date", "").strip()
+    if date_value:
+        one_time = re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_value)
+        yearly = re.fullmatch(r"\d{2}-\d{2}", date_value)
+        if not (one_time or yearly):
+            return None, ("Date must be MM-DD (fires yearly) or "
+                          "YYYY-MM-DD (fires once).")
+        if one_time:
+            year, mm, dd = (date_value[:4], date_value[5:7], date_value[8:])
+        else:
+            year, mm, dd = "2024", date_value[:2], date_value[3:]
+        try:
+            date_obj = datetime.date(int(year), int(mm), int(dd))
+        except ValueError:
+            return None, "That is not a real calendar date."
+        if one_time and date_obj < datetime.datetime.now(IST).date():
+            return None, ("That date is already in the past -- pick a "
+                          "future date for a one-time reminder.")
+        m["date"] = date_value
+    if form.get("quote"):
+        m["quote"] = True
     return m, None
 
 
@@ -608,7 +714,8 @@ class AdminHandler(BaseHTTPRequestHandler):
                     m = messages[idx]
                 except (ValueError, IndexError):
                     return self._redirect("No such message.", flash_err=True)
-                ok = send_notification(m["text"], m["title"], m["priority"])
+                ok = send_notification(message_text(m), m["title"],
+                                       m["priority"])
                 return self._redirect(
                     "Test notification sent - check your phone!"
                     if ok else

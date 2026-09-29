@@ -60,6 +60,35 @@ def send_notification(text, title="Reminder", priority="default",
         return ok
 
 
+ZENQUOTES_URL = "https://zenquotes.io/api/today"
+
+
+def fetch_quote():
+    """Quote of the day from zenquotes.io (free, no key needed).
+
+    Returns the formatted quote text, or None on any failure.
+    """
+    try:
+        request = urllib.request.Request(
+            ZENQUOTES_URL, headers={"User-Agent": "phone-notifier"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        return f'\"{data[0]["q"]}\" - {data[0]["a"]}'
+    except Exception as exc:  # noqa: BLE001 - the quote is best-effort
+        print(f"[quote] could not fetch quote of the day: {exc}")
+        return None
+
+
+def message_text(msg):
+    """Message text, with the daily quote appended if requested."""
+    text = msg["text"]
+    if msg.get("quote"):
+        quote = fetch_quote()
+        if quote:
+            text = f"{text}\n\n{quote}"
+    return text
+
+
 def day_matches(days_setting, today_name):
     weekdays = {"monday", "tuesday", "wednesday", "thursday", "friday"}
     if days_setting == "everyday":
@@ -95,10 +124,18 @@ def main():
         scheduled = now.replace(hour=hour, minute=minute,
                                  second=0, microsecond=0)
 
-        if (window_start < scheduled <= now
-                and day_matches(msg.get("days", "everyday"), today_name)):
+        if "date" in msg:
+            # dated reminder: MM-DD fires yearly, YYYY-MM-DD fires once;
+            # the Days setting is ignored when a date is set
+            d = str(msg["date"])
+            day_ok = (now.strftime("%Y-%m-%d") == d if len(d) == 10
+                      else now.strftime("%m-%d") == d)
+        else:
+            day_ok = day_matches(msg.get("days", "everyday"), today_name)
+
+        if window_start < scheduled <= now and day_ok:
             send_notification(
-                msg["text"],
+                message_text(msg),
                 msg.get("title", "Reminder"),
                 msg.get("priority", "default"),
             )
