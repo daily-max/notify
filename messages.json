@@ -44,15 +44,8 @@
   {
     "time": "22:30",
     "days": "everyday",
-    "title": "Wind down",
-    "text": "Screens off soon - time to get ready for bed.",
+    "title": "Wind down & plan tomorrow",
+    "text": "Screens off soon - time to get ready for bed. Quick plan for tomorrow: basic needs, important tasks, special occasions.",
     "priority": "default"
-  },
-  {
-    "time": "22:45",
-    "title": "Tomorrow Plan",
-    "text": "basic need, imp task, special occation",
-    "priority": "default",
-    "days": "everyday"
   }
 ]
