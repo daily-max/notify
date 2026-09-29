@@ -106,30 +106,41 @@ def send_notification(text, title="Reminder", priority="default",
         return False
 
 
-ZENQUOTES_URL = "https://zenquotes.io/api/today"
+HINDI_QUOTES_URL = "https://hindi-quotes.vercel.app/random"
+QUOTE_CATEGORIES = ("positive", "success", "love", "attitude",
+                    "motivational")
 
 
-def fetch_quote():
-    """Quote of the day from zenquotes.io (free, no key needed).
+def fetch_quote(category=None):
+    """Random Hindi quote from hindi-quotes.vercel.app (free, no key).
 
-    Returns the formatted quote text, or None on any failure.
+    'category' optionally restricts the quote to one of
+    QUOTE_CATEGORIES. Returns the quote text, or None on any failure.
     """
+    url = HINDI_QUOTES_URL
+    if category and str(category).lower() in QUOTE_CATEGORIES:
+        url += "/" + str(category).lower()
     try:
         request = urllib.request.Request(
-            ZENQUOTES_URL, headers={"User-Agent": "phone-notifier"})
+            url, headers={"User-Agent": "phone-notifier"})
         with urllib.request.urlopen(request, timeout=10) as response:
             data = json.loads(response.read().decode("utf-8"))
-        return f'\"{data[0]["q"]}\" - {data[0]["a"]}'
+        if isinstance(data, list):      # tolerate either response shape
+            data = data[0]
+        quote = str(data.get("quote", "")).strip()
+        return quote or None
     except Exception as exc:  # noqa: BLE001 - the quote is best-effort
-        print(f"[quote] could not fetch quote of the day: {exc}")
+        print(f"[quote] could not fetch Hindi quote: {exc}")
         return None
 
 
 def message_text(msg):
-    """Message text, with the daily quote appended if requested."""
+    """Message text, with the daily Hindi quote appended if requested."""
     text = msg["text"]
     if msg.get("quote"):
-        quote = fetch_quote()
+        setting = msg["quote"]
+        category = setting if isinstance(setting, str) else None
+        quote = fetch_quote(category)
         if quote:
             text = f"{text}\n\n{quote}"
     return text
@@ -408,12 +419,17 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
     for i, m in enumerate(messages):
         prio_cls = "prio-urgent" if m["priority"] == "urgent" else (
             "prio-high" if m["priority"] == "high" else "")
+        quote_note = ""
+        if m.get("quote"):
+            label = (f"Hindi quote ({m['quote']})"
+                     if isinstance(m["quote"], str) else "Hindi quote")
+            quote_note = f'<br><span class="note">+ daily {label}</span>'
         rows.append(f"""
 <tr>
  <td class="time">{e(m['time'])}</td>
  <td>{e(describe_when(m))}</td>
  <td><span class="title">{e(m['title'])}</span><br>
-     <span class="note">{e(m['text'])}</span>{'<br><span class="note">+ daily quote (zenquotes.io)</span>' if m.get('quote') else ''}</td>
+     <span class="note">{e(m['text'])}</span>{quote_note}</td>
  <td class="{prio_cls}">{e(m['priority'])}</td>
  <td style="white-space:nowrap">
    <form method="post" action="/test" style="display:inline">
@@ -459,6 +475,14 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
                   f'{e(flash)}</div>') if flash else ""
     persistence = ("GitHub" if GITHUB_REPO else
                     "ephemeral -- changes are lost on restart/redeploy")
+
+    current_cat = fm.get("quote") if isinstance(fm.get("quote"), str) else ""
+    quote_cat_options = "".join(
+        f'<option value="{v}"{" selected" if v == current_cat else ""}>{t}</option>'
+        for v, t in [("", "Any"), ("positive", "Positive"),
+                     ("success", "Success"), ("love", "Love"),
+                     ("attitude", "Attitude"),
+                     ("motivational", "Motivational")])
 
     return f"""<!doctype html>
 <html><head><meta charset="utf-8">
@@ -508,8 +532,14 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
  <input name="title" value="{e(fm['title'])}" maxlength="60">
  <label>Message text</label>
  <input name="text" value="{e(fm['text'])}" required maxlength="300">
- <label class="checkline"><input type="checkbox" name="quote" value="1"{' checked' if fm.get('quote') else ''}>
-  Append the quote of the day (from zenquotes.io)</label>
+ <div class="row">
+  <div><label class="checkline"><input type="checkbox" name="quote" value="1"{' checked' if fm.get('quote') else ''}>
+   Append a daily Hindi quote</label></div>
+  <div><label>Quote category</label>
+   <select name="quote_category">{quote_cat_options}</select></div>
+ </div>
+ <p class="note">Random Hindi quote from hindi-quotes.vercel.app -
+ pick a category or leave it on Any.</p>
  <button type="submit">Save message</button>
 </form>
 </div></body></html>"""
@@ -583,7 +613,8 @@ def form_to_message(form):
                           "future date for a one-time reminder.")
         m["date"] = date_value
     if form.get("quote"):
-        m["quote"] = True
+        category = form.get("quote_category", "").strip().lower()
+        m["quote"] = category if category in QUOTE_CATEGORIES else True
     return m, None
 
 

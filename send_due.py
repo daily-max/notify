@@ -60,30 +60,41 @@ def send_notification(text, title="Reminder", priority="default",
         return ok
 
 
-ZENQUOTES_URL = "https://zenquotes.io/api/today"
+HINDI_QUOTES_URL = "https://hindi-quotes.vercel.app/random"
+QUOTE_CATEGORIES = ("positive", "success", "love", "attitude",
+                    "motivational")
 
 
-def fetch_quote():
-    """Quote of the day from zenquotes.io (free, no key needed).
+def fetch_quote(category=None):
+    """Random Hindi quote from hindi-quotes.vercel.app (free, no key).
 
-    Returns the formatted quote text, or None on any failure.
+    'category' optionally restricts the quote to one of
+    QUOTE_CATEGORIES. Returns the quote text, or None on any failure.
     """
+    url = HINDI_QUOTES_URL
+    if category and str(category).lower() in QUOTE_CATEGORIES:
+        url += "/" + str(category).lower()
     try:
         request = urllib.request.Request(
-            ZENQUOTES_URL, headers={"User-Agent": "phone-notifier"})
+            url, headers={"User-Agent": "phone-notifier"})
         with urllib.request.urlopen(request, timeout=10) as response:
             data = json.loads(response.read().decode("utf-8"))
-        return f'\"{data[0]["q"]}\" - {data[0]["a"]}'
+        if isinstance(data, list):      # tolerate either response shape
+            data = data[0]
+        quote = str(data.get("quote", "")).strip()
+        return quote or None
     except Exception as exc:  # noqa: BLE001 - the quote is best-effort
-        print(f"[quote] could not fetch quote of the day: {exc}")
+        print(f"[quote] could not fetch Hindi quote: {exc}")
         return None
 
 
 def message_text(msg):
-    """Message text, with the daily quote appended if requested."""
+    """Message text, with the daily Hindi quote appended if requested."""
     text = msg["text"]
     if msg.get("quote"):
-        quote = fetch_quote()
+        setting = msg["quote"]
+        category = setting if isinstance(setting, str) else None
+        quote = fetch_quote(category)
         if quote:
             text = f"{text}\n\n{quote}"
     return text
