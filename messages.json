@@ -1,11 +1,11 @@
 [
   {
     "time": "07:00",
-    "days": "everyday",
     "title": "Good morning",
     "text": "Time to wake up and start the day.",
     "priority": "high",
-    "quote": "motivational"
+    "days": "everyday",
+    "quote": true
   },
   {
     "time": "07:30",
