@@ -88,6 +88,22 @@ Each entry in `messages.json`:
 
 - No notification? Check that `NTFY_TOPIC` on Render exactly matches the
   topic you subscribed to in the ntfy app (it's case-sensitive).
+- **"Could not send: HTTP 429 ... daily message quota reached"** --
+  ntfy.sh's free daily quota is counted per source IP, and Render's
+  free tier shares its egress IPs with many other apps, so the quota
+  is typically exhausted by other people's traffic long before your
+  few daily messages. Changing the topic or retrying will not help.
+  Options:
+  1. **ntfy.sh paid plan**: sign up, create an access token
+     (Account -> Access tokens), then set `NTFY_TOKEN` on Render to
+     `tk_...`. Paid users get a per-account quota, so the shared IP
+     no longer matters.
+  2. **Self-host ntfy**: run your own ntfy server (no quotas) on any
+     machine/container you control, then set `NTFY_SERVER` on Render
+     to its URL and subscribe in the phone app via
+     "+ Subscribe -> use another server".
+  3. Both `NTFY_SERVER` and `NTFY_TOKEN` are optional environment
+     variables supported by `notifier_web.py` and `send_due.py`.
 - Option A notifications late or missing? Your keep-alive pinger
   probably stopped -- check cron-job.org still pings your URL.
 - Watch the logs: Render dashboard -> your service -> Logs.
