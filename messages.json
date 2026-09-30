@@ -8,13 +8,6 @@
     "quote": true
   },
   {
-    "time": "07:30",
-    "days": "everyday",
-    "title": "Morning walk",
-    "text": "Time for your morning walk!",
-    "priority": "high"
-  },
-  {
     "time": "10:30",
     "days": "everyday",
     "title": "Drink water",
