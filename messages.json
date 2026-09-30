@@ -4,7 +4,8 @@
     "days": "everyday",
     "title": "Good morning",
     "text": "Time to wake up and start the day.",
-    "priority": "high"
+    "priority": "high",
+    "quote": "motivational"
   },
   {
     "time": "07:30",

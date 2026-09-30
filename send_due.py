@@ -51,6 +51,7 @@ def send_notification(text, title="Reminder", priority="default",
     """POST a message to the ntfy topic. Returns True on success."""
     headers = {"Title": title, "Priority": priority, "Tags": tags}
     if NTFY_TOKEN:
+        # ntfy.sh per-account quota or self-hosted server
         headers["Authorization"] = f"Bearer {NTFY_TOKEN}"
     request = urllib.request.Request(
         f"{NTFY_SERVER}/{NTFY_TOPIC}",
@@ -62,6 +63,46 @@ def send_notification(text, title="Reminder", priority="default",
         ok = 200 <= response.status < 300
         print(f"[sent] {title}: {text} (HTTP {response.status})")
         return ok
+
+
+HINDI_QUOTES_URL = "https://hindi-quotes.vercel.app/random"
+QUOTE_CATEGORIES = ("positive", "success", "love", "attitude",
+                    "motivational")
+
+
+def fetch_quote(category=None):
+    """Random Hindi quote from hindi-quotes.vercel.app (free, no key).
+
+    'category' optionally restricts the quote to one of
+    QUOTE_CATEGORIES. Returns the quote text, or None on any failure.
+    """
+    url = HINDI_QUOTES_URL
+    if category and str(category).lower() in QUOTE_CATEGORIES:
+        url += "/" + str(category).lower()
+    try:
+        request = urllib.request.Request(
+            url, headers={"User-Agent": "phone-notifier"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        if isinstance(data, list):      # tolerate either response shape
+            data = data[0]
+        quote = str(data.get("quote", "")).strip()
+        return quote or None
+    except Exception as exc:  # noqa: BLE001 - the quote is best-effort
+        print(f"[quote] could not fetch Hindi quote: {exc}")
+        return None
+
+
+def message_text(msg):
+    """Message text, with the daily Hindi quote appended if requested."""
+    text = msg["text"]
+    if msg.get("quote"):
+        setting = msg["quote"]
+        category = setting if isinstance(setting, str) else None
+        quote = fetch_quote(category)
+        if quote:
+            text = f"{text}\n\n{quote}"
+    return text
 
 
 def day_matches(days_setting, today_name):
@@ -99,10 +140,18 @@ def main():
         scheduled = now.replace(hour=hour, minute=minute,
                                  second=0, microsecond=0)
 
-        if (window_start < scheduled <= now
-                and day_matches(msg.get("days", "everyday"), today_name)):
+        if "date" in msg:
+            # dated reminder: MM-DD fires yearly, YYYY-MM-DD fires once;
+            # the Days setting is ignored when a date is set
+            d = str(msg["date"])
+            day_ok = (now.strftime("%Y-%m-%d") == d if len(d) == 10
+                      else now.strftime("%m-%d") == d)
+        else:
+            day_ok = day_matches(msg.get("days", "everyday"), today_name)
+
+        if window_start < scheduled <= now and day_ok:
             send_notification(
-                msg["text"],
+                message_text(msg),
                 msg.get("title", "Reminder"),
                 msg.get("priority", "default"),
             )
