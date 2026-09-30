@@ -454,10 +454,10 @@ ul.schedule{list-style:none;margin:0;padding:0;display:flex;
   flex-direction:column;gap:10px;}
 li.msg{background:var(--card);border:1px solid var(--line);
   border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);
-  display:flex;gap:14px;}
+  display:flex;gap:14px;flex-wrap:wrap;}
 .time{font-variant-numeric:tabular-nums;font-weight:650;font-size:1.05rem;
   min-width:3.7rem;letter-spacing:-.01em;}
-.msg-body{flex:1;min-width:0;}
+.msg-body{flex:1 1 12rem;min-width:0;}
 .msg-title{font-weight:600;}
 .msg-text{color:var(--muted);font-size:.88rem;margin-top:2px;
   overflow-wrap:anywhere;}
@@ -470,7 +470,8 @@ li.msg{background:var(--card);border:1px solid var(--line);
 .chip.prio-urgent{color:var(--err-ink);border-color:var(--err-line);
   background:var(--err-bg);font-weight:600;}
 .chip.quote{color:var(--accent);}
-.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;flex:1 0 100%;
+  margin-top:11px;}
 .actions form{display:inline;margin:0;}
 .btn{display:inline-block;font:inherit;font-size:.84rem;padding:7px 13px;
   border-radius:9px;cursor:pointer;text-decoration:none;
@@ -486,7 +487,17 @@ a{color:var(--accent);}
 .empty{color:var(--muted);font-size:.9rem;background:var(--card);
   border:1px dashed var(--line);border-radius:var(--radius);padding:24px;
   text-align:center;}
-details.addbox{margin-top:26px;}
+.layout{display:block;}
+.schedule-col{min-width:0;}
+.form-col{margin-top:26px;}
+details.addbox{margin:0;}
+@media (min-width:900px){
+  body{padding:28px 24px 64px;}
+  .wrap{max-width:1000px;}
+  li.msg{flex-wrap:nowrap;align-items:center;padding:12px 16px;}
+  .msg-body{flex:1 1 auto;}
+  .actions{flex:none;width:auto;margin:0 0 0 14px;}
+}
 summary.add-toggle{display:flex;align-items:center;justify-content:center;
   gap:9px;list-style:none;width:100%;font-size:.95rem;font-weight:600;
   padding:12px 16px;border-radius:10px;background:var(--accent);
@@ -540,18 +551,18 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
     <div class="msg-title">{e(m['title'])}</div>
     <div class="msg-text">{e(m['text'])}</div>
     <div class="chips">{''.join(chips)}</div>
-    <div class="actions">
-      <form method="post" action="/test">
-        <input type="hidden" name="id" value="{i}">
-        <button class="btn" type="submit">Test</button>
-      </form>
-      <a class="btn" href="/edit?id={i}">Edit</a>
-      <form method="post" action="/delete"
-            onsubmit="return confirm('Delete this message?')">
-        <input type="hidden" name="id" value="{i}">
-        <button class="btn danger" type="submit">Delete</button>
-      </form>
-    </div>
+  </div>
+  <div class="actions">
+    <form method="post" action="/test">
+      <input type="hidden" name="id" value="{i}">
+      <button class="btn" type="submit">Test</button>
+    </form>
+    <a class="btn" href="/edit?id={i}">Edit</a>
+    <form method="post" action="/delete"
+          onsubmit="return confirm('Delete this message?')">
+      <input type="hidden" name="id" value="{i}">
+      <button class="btn danger" type="submit">Delete</button>
+    </form>
   </div>
 </li>""")
 
@@ -612,10 +623,13 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
  &middot; storage: {e(persistence)}</p>
 {flash_html}
 {warn_html}
+<div class="layout">
+<main class="schedule-col">
 <ul class="schedule">
 {''.join(cards) or '<li class="empty">No messages yet -- add one below.</li>'}
 </ul>
-
+</main>
+<aside class="form-col">
 <details class="addbox"{' open' if edit_index is not None else ''}>
 <summary class="add-toggle">{e(heading)}</summary>
 <form method="post" action="/save" class="card">
@@ -657,6 +671,8 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
  <button class="btn primary" type="submit">Save message</button>
 </form>
 </details>
+</aside>
+</div>
 </div>
 <script>
 (function(){{
