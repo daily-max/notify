@@ -403,81 +403,157 @@ def run_scheduler():
 # Web interface
 # ------------------------------------------------------------------
 STYLE = """
-body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:
-#f4f5f7;color:#1f2933;margin:0;padding:24px;}
-.wrap{max-width:760px;margin:0 auto;}
-h1{font-size:1.5rem;margin:0 0 4px;}
-h2{font-size:1.15rem;margin:28px 0 12px;}
-.note{color:#52606d;font-size:.9rem;margin:4px 0 18px;}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;
-overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.12);}
-th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e4e7eb;
-font-size:.92rem;vertical-align:top;}
-th{background:#eef1f5;font-size:.8rem;text-transform:uppercase;
-letter-spacing:.04em;color:#52606d;}
-tr:last-child td{border-bottom:none;}
-.time{font-weight:600;white-space:nowrap;}
-.title{font-weight:600;}
-form.card{background:#fff;border-radius:8px;padding:18px;margin-top:12px;
-box-shadow:0 1px 3px rgba(0,0,0,.12);}
-label{display:block;font-size:.82rem;font-weight:600;color:#52606d;
-margin:12px 0 4px;}
-input,select{width:100%;padding:9px 10px;border:1px solid #cbd2d9;
-border-radius:6px;font-size:1rem;box-sizing:border-box;background:#fff;}
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --text:#1f2933; --muted:#5b6675;
+  --line:#e3e6ea; --accent:#2563eb; --accent-ink:#ffffff;
+  --danger:#dc2626;
+  --warn-bg:#fff7ed; --warn-line:#fed7aa; --warn-ink:#9a3412;
+  --ok-bg:#f0fdf4; --ok-line:#bbf7d0; --ok-ink:#166534;
+  --err-bg:#fef2f2; --err-line:#fecaca; --err-ink:#991b1b;
+  --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme=light]){
+    --bg:#12161c; --card:#1a2029; --text:#e7ebf0; --muted:#98a5b4;
+    --line:#2a323d; --accent:#5b8def; --accent-ink:#0b1220;
+    --danger:#f87171;
+    --warn-bg:#2a2016; --warn-line:#5b3a1a; --warn-ink:#fbbf24;
+    --ok-bg:#12251a; --ok-line:#1f4d33; --ok-ink:#86efac;
+    --err-bg:#2a1618; --err-line:#5b2529; --err-ink:#fca5a5;
+    --shadow:0 1px 2px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme=dark]{
+  --bg:#12161c; --card:#1a2029; --text:#e7ebf0; --muted:#98a5b4;
+  --line:#2a323d; --accent:#5b8def; --accent-ink:#0b1220;
+  --danger:#f87171;
+  --warn-bg:#2a2016; --warn-line:#5b3a1a; --warn-ink:#fbbf24;
+  --ok-bg:#12251a; --ok-line:#1f4d33; --ok-ink:#86efac;
+  --err-bg:#2a1618; --err-line:#5b2529; --err-ink:#fca5a5;
+  --shadow:0 1px 2px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 16px 56px;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:680px;margin:0 auto;}
+header.top{display:flex;align-items:center;gap:12px;justify-content:space-between;}
+h1{font-size:clamp(1.3rem,5vw,1.6rem);margin:0;letter-spacing:-.01em;}
+h2{font-size:1.05rem;margin:0 0 10px;letter-spacing:-.005em;}
+.sub{color:var(--muted);font-size:.83rem;margin:6px 0 16px;}
+.note{color:var(--muted);font-size:.88rem;margin:6px 0;}
+.theme-toggle{background:transparent;border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;width:38px;height:38px;font-size:1rem;line-height:1;
+  cursor:pointer;padding:0;margin:0;flex:none;}
+.theme-toggle:hover{color:var(--text);border-color:var(--muted);}
+.alert{padding:11px 14px;border-radius:10px;margin:0 0 14px;font-size:.87rem;
+  border:1px solid var(--err-line);background:var(--err-bg);color:var(--err-ink);}
+.alert.ok{border-color:var(--ok-line);background:var(--ok-bg);color:var(--ok-ink);}
+ul.schedule{list-style:none;margin:0;padding:0;display:flex;
+  flex-direction:column;gap:10px;}
+li.msg{background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);
+  display:flex;gap:14px;}
+.time{font-variant-numeric:tabular-nums;font-weight:650;font-size:1.05rem;
+  min-width:3.7rem;letter-spacing:-.01em;}
+.msg-body{flex:1;min-width:0;}
+.msg-title{font-weight:600;}
+.msg-text{color:var(--muted);font-size:.88rem;margin-top:2px;
+  overflow-wrap:anywhere;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+.chip{font-size:.71rem;color:var(--muted);background:var(--bg);
+  border:1px solid var(--line);padding:2px 9px;border-radius:999px;
+  white-space:nowrap;}
+.chip.prio-high{color:var(--warn-ink);border-color:var(--warn-line);
+  background:var(--warn-bg);}
+.chip.prio-urgent{color:var(--err-ink);border-color:var(--err-line);
+  background:var(--err-bg);font-weight:600;}
+.chip.quote{color:var(--accent);}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.actions form{display:inline;margin:0;}
+.btn{display:inline-block;font:inherit;font-size:.84rem;padding:7px 13px;
+  border-radius:9px;cursor:pointer;text-decoration:none;
+  border:1px solid var(--line);background:var(--card);color:var(--text);
+  margin:0;}
+.btn:hover{border-color:var(--muted);}
+.btn.danger{color:var(--danger);}
+.btn.primary{width:100%;margin-top:8px;padding:12px 18px;font-size:.95rem;
+  font-weight:600;background:var(--accent);color:var(--accent-ink);
+  border-color:transparent;}
+.btn.primary:hover{filter:brightness(1.08);border-color:transparent;}
+a{color:var(--accent);}
+.empty{color:var(--muted);font-size:.9rem;background:var(--card);
+  border:1px dashed var(--line);border-radius:var(--radius);padding:24px;
+  text-align:center;}
+details.addbox{margin-top:26px;}
+summary.add-toggle{display:flex;align-items:center;justify-content:center;
+  gap:9px;list-style:none;width:100%;font-size:.95rem;font-weight:600;
+  padding:12px 16px;border-radius:10px;background:var(--accent);
+  color:var(--accent-ink);border:1px solid transparent;cursor:pointer;}
+summary.add-toggle::-webkit-details-marker{display:none;}
+summary.add-toggle::marker{content:"";}
+summary.add-toggle::before{content:"+";font-weight:700;font-size:1.05rem;}
+summary.add-toggle:hover{filter:brightness(1.08);}
+details.addbox[open] summary.add-toggle{background:var(--card);
+  color:var(--text);border-color:var(--line);margin-bottom:10px;}
+details.addbox[open] summary.add-toggle:hover{filter:none;
+  border-color:var(--muted);}
+details.addbox[open] summary.add-toggle::before{content:"\2013";}
+form.card{background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);
+  margin:14px 0 5px;letter-spacing:.01em;}
+input,select{width:100%;padding:11px 12px;border:1px solid var(--line);
+  border-radius:10px;font:inherit;font-size:.95rem;background:var(--bg);
+  color:var(--text);}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+input[type=checkbox]{width:auto;margin:0;accent-color:var(--accent);}
 .row{display:flex;gap:12px;flex-wrap:wrap;}
-.row>div{flex:1;min-width:130px;}
-button{margin-top:16px;padding:10px 18px;border:none;border-radius:6px;
-background:#2563eb;color:#fff;font-size:.95rem;cursor:pointer;}
-button:hover{background:#1d4ed8;}
-.linkbtn{background:none;border:none;color:#2563eb;padding:4px 6px;
-margin:0;cursor:pointer;font-size:.85rem;text-decoration:underline;}
-.danger{color:#dc2626;}
-input[type=checkbox]{width:auto;margin:0;}
-.checkline{display:flex;align-items:center;gap:8px;font-weight:400;
-cursor:pointer;margin-top:14px;}
-.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;
-padding:10px 12px;border-radius:6px;margin-bottom:14px;font-size:.9rem;}
-.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;
-padding:10px 12px;border-radius:6px;margin-bottom:14px;font-size:.9rem;}
-.prio-urgent{color:#dc2626;font-weight:600;}
-.prio-high{color:#ea580c;}
+.row>div{flex:1;min-width:140px;}
+.checkline{display:flex;align-items:center;gap:9px;font-weight:500;
+  font-size:.9rem;color:var(--text);margin:0;cursor:pointer;}
+.hint{color:var(--muted);font-size:.77rem;margin:6px 0 0;line-height:1.45;}
 """
 
 
 def render_page(messages, edit_index=None, flash=None, flash_err=False):
-    """Build the dashboard HTML."""
+    """Build the dashboard HTML (mobile-first, light/dark aware)."""
     e = html.escape
 
-    # rows
-    rows = []
+    cards = []
     for i, m in enumerate(messages):
-        prio_cls = "prio-urgent" if m["priority"] == "urgent" else (
-            "prio-high" if m["priority"] == "high" else "")
-        quote_note = ""
+        prio = m["priority"]
+        prio_cls = ("prio-urgent" if prio == "urgent"
+                    else "prio-high" if prio == "high" else "")
+        chips = [f'<span class="chip">{e(describe_when(m))}</span>']
+        if prio != "default":
+            chips.append(f'<span class="chip {prio_cls}">{e(prio)}</span>')
         if m.get("quote"):
-            label = (f"Hindi quote ({m['quote']})"
+            label = (f'Hindi quote &middot; {e(m["quote"])}'
                      if isinstance(m["quote"], str) else "Hindi quote")
-            quote_note = f'<br><span class="note">+ daily {label}</span>'
-        rows.append(f"""
-<tr>
- <td class="time">{e(m['time'])}</td>
- <td>{e(describe_when(m))}</td>
- <td><span class="title">{e(m['title'])}</span><br>
-     <span class="note">{e(m['text'])}</span>{quote_note}</td>
- <td class="{prio_cls}">{e(m['priority'])}</td>
- <td style="white-space:nowrap">
-   <form method="post" action="/test" style="display:inline">
-     <input type="hidden" name="id" value="{i}">
-     <button class="linkbtn" type="submit">Test</button>
-   </form>
-   <a href="/edit?id={i}">Edit</a> &middot;
-   <form method="post" action="/delete" style="display:inline"
-         onsubmit="return confirm('Delete this message?')">
-     <input type="hidden" name="id" value="{i}">
-     <button class="linkbtn danger" type="submit">Delete</button>
-   </form>
- </td>
-</tr>""")
+            chips.append(f'<span class="chip quote">+ {label}</span>')
+        cards.append(f"""
+<li class="msg">
+  <div class="time">{e(m['time'])}</div>
+  <div class="msg-body">
+    <div class="msg-title">{e(m['title'])}</div>
+    <div class="msg-text">{e(m['text'])}</div>
+    <div class="chips">{''.join(chips)}</div>
+    <div class="actions">
+      <form method="post" action="/test">
+        <input type="hidden" name="id" value="{i}">
+        <button class="btn" type="submit">Test</button>
+      </form>
+      <a class="btn" href="/edit?id={i}">Edit</a>
+      <form method="post" action="/delete"
+            onsubmit="return confirm('Delete this message?')">
+        <input type="hidden" name="id" value="{i}">
+        <button class="btn danger" type="submit">Delete</button>
+      </form>
+    </div>
+  </div>
+</li>""")
 
     # edit form (blank for add, prefilled for edit)
     if edit_index is None:
@@ -505,12 +581,12 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
         for p in PRIORITIES)
 
     custom_display = "block" if days_mode == "custom" else "none"
-    flash_html = (f'<div class="{"err" if flash_err else "ok"}">'
+    flash_html = (f'<div class="alert{" ok" if not flash_err else ""}">'
                   f'{e(flash)}</div>') if flash else ""
     warn = topic_warning()
-    warn_html = f'<div class="err">{e(warn)}</div>' if warn else ""
+    warn_html = f'<div class="alert">{e(warn)}</div>' if warn else ""
     persistence = ("GitHub" if GITHUB_REPO else
-                    "ephemeral -- changes are lost on restart/redeploy")
+                   "ephemeral -- changes are lost on restart/redeploy")
 
     current_cat = fm.get("quote") if isinstance(fm.get("quote"), str) else ""
     quote_cat_options = "".join(
@@ -521,23 +597,27 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
                      ("motivational", "Motivational")])
 
     return f"""<!doctype html>
-<html><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Notifier schedule</title>
 <style>{STYLE}</style></head>
 <body><div class="wrap">
-<h1>🔔 Message schedule</h1>
-<p class="note">{len(messages)} message(s) &middot; times shown in IST
+<header class="top">
+ <h1>🔔 Message schedule</h1>
+ <button class="theme-toggle" type="button" onclick="toggleTheme()"
+   aria-label="Switch between light and dark mode" title="Light / dark">◐</button>
+</header>
+<p class="sub">{len(messages)} message(s) &middot; times in IST
  &middot; storage: {e(persistence)}</p>
 {flash_html}
 {warn_html}
-<table>
-<tr><th>Time</th><th>Days</th><th>Message</th><th>Priority</th>
-<th></th></tr>
-{''.join(rows) or '<tr><td colspan="5" class="note">No messages yet -- add one below.</td></tr>'}
-</table>
+<ul class="schedule">
+{''.join(cards) or '<li class="empty">No messages yet -- add one below.</li>'}
+</ul>
 
-<h2>{e(heading)}</h2>
+<details class="addbox"{' open' if edit_index is not None else ''}>
+<summary class="add-toggle">{e(heading)}</summary>
 <form method="post" action="/save" class="card">
  {hidden_id}
  <div class="row">
@@ -556,36 +636,58 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
    <input name="days_custom" value="{e(days_custom)}"
      placeholder="mon, wed, fri"></div>
  </div>
- <div class="row">
-  <div><label>Date (optional)</label>
-   <input name="date" value="{e(fm.get('date', ''))}" maxlength="10"
-     placeholder="MM-DD or YYYY-MM-DD"></div>
- </div>
- <p class="note">MM-DD sends yearly on that date; YYYY-MM-DD sends once
- on that exact date and never again until you change it. The Days
- setting is ignored when a date is set; leave it empty for a weekly
- schedule.</p>
- <label>Title (bold heading in the notification)</label>
- <input name="title" value="{e(fm['title'])}" maxlength="60">
+ <label>Date (optional)</label>
+ <input name="date" value="{e(fm.get('date', ''))}" maxlength="10"
+   placeholder="MM-DD or YYYY-MM-DD">
+ <p class="hint">MM-DD sends yearly on that date; YYYY-MM-DD sends once on that
+ exact date and never again until you change it. The Days setting is ignored
+ when a date is set.</p>
+ <label>Title</label>
+ <input name="title" value="{e(fm['title'])}" maxlength="60"
+   placeholder="Bold heading in the notification">
  <label>Message text</label>
- <input name="text" value="{e(fm['text'])}" required maxlength="300">
- <div class="row">
-  <div><label class="checkline"><input type="checkbox" name="quote" value="1"{' checked' if fm.get('quote') else ''}>
-   Append a daily Hindi quote</label></div>
-  <div><label>Quote category</label>
-   <select name="quote_category">{quote_cat_options}</select></div>
- </div>
- <p class="note">Random Hindi quote from hindi-quotes.vercel.app -
- pick a category or leave it on Any.</p>
- <button type="submit">Save message</button>
+ <input name="text" value="{e(fm['text'])}" required maxlength="300"
+   placeholder="What should the notification say?">
+ <label class="checkline"><input type="checkbox" name="quote" value="1"{' checked' if fm.get('quote') else ''}>
+  Append a daily Hindi quote</label>
+ <label>Quote category</label>
+ <select name="quote_category">{quote_cat_options}</select>
+ <p class="hint">Random Hindi quote from hindi-quotes.vercel.app - pick a
+ category or leave it on Any.</p>
+ <button class="btn primary" type="submit">Save message</button>
 </form>
-</div></body></html>"""
+</details>
+</div>
+<script>
+(function(){{
+  try {{
+    var saved = localStorage.getItem('notify-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  }} catch (err) {{}}
+}})();
+function toggleTheme(){{
+  var root = document.documentElement;
+  var current = root.getAttribute('data-theme');
+  if (!current) {{
+    current = window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark' : 'light';
+  }}
+  var next = current === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  try {{ localStorage.setItem('notify-theme', next); }} catch (err) {{}}
+}}
+</script>
+</body></html>"""
 
 
 def render_error(message):
-    return f"""<!doctype html><html><head><meta charset="utf-8">
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Error</title><style>{STYLE}</style></head>
-<body><div class="wrap"><h2>Something went wrong</h2>
+<body><div class="wrap">
+<h2>Something went wrong</h2>
 <p class="note">{html.escape(message)}</p>
 <p><a href="/ui">&larr; Back to the schedule</a></p>
 </div></body></html>"""
