@@ -493,13 +493,11 @@ a{color:var(--accent);}
 details.addbox{margin:0;}
 @media (min-width:900px){
   body{padding:28px 24px 64px;}
-  .wrap{max-width:1080px;}
-  .layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;
-    gap:26px;align-items:start;}
-  .form-col{margin-top:0;position:sticky;top:22px;}
+  .wrap{max-width:1000px;}
   li.msg{flex-wrap:nowrap;align-items:center;padding:12px 16px;}
   .msg-body{flex:1 1 auto;}
   .actions{flex:none;width:auto;margin:0 0 0 14px;}
+  .form-col{max-width:720px;}
 }
 summary.add-toggle{display:flex;align-items:center;justify-content:center;
   gap:9px;list-style:none;width:100%;font-size:.95rem;font-weight:600;
@@ -682,14 +680,6 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
   try {{
     var saved = localStorage.getItem('notify-theme');
     if (saved) document.documentElement.setAttribute('data-theme', saved);
-  }} catch (err) {{}}
-  try {{
-    // Desktop has the room, so show the form without needing a tap.
-    // On phones it stays collapsed behind the button.
-    var box = document.querySelector('details.addbox');
-    if (box && window.matchMedia('(min-width: 900px)').matches) {{
-      box.open = true;
-    }}
   }} catch (err) {{}}
 }})();
 function toggleTheme(){{
