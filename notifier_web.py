@@ -497,7 +497,6 @@ details.addbox{margin:0;}
   li.msg{flex-wrap:nowrap;align-items:center;padding:12px 16px;}
   .msg-body{flex:1 1 auto;}
   .actions{flex:none;width:auto;margin:0 0 0 14px;}
-  .form-col{max-width:720px;}
 }
 summary.add-toggle{display:flex;align-items:center;justify-content:center;
   gap:9px;list-style:none;width:100%;font-size:.95rem;font-weight:600;
