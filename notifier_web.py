@@ -54,8 +54,9 @@ from zoneinfo import ZoneInfo
 # Config
 # ------------------------------------------------------------------
 IST = ZoneInfo("Asia/Kolkata")
-NTFY_SERVER = "https://ntfy.sh"
+NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh")
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "my-alerts-x7k2pq")  # <-- CHANGE
+NTFY_TOKEN = os.environ.get("NTFY_TOKEN") or None  # optional access token
 MESSAGES_FILE = pathlib.Path(__file__).resolve().parent / "messages.json"
 PORT = int(os.environ.get("PORT", "10000"))
 
@@ -89,21 +90,54 @@ SAVE_LOCK = threading.Lock()      # serialize edits + reloads
 # ------------------------------------------------------------------
 def send_notification(text, title="Reminder", priority="default",
                       tags="bell"):
-    """POST a message to the ntfy topic. Returns True on success."""
+    """POST a message to the ntfy topic. Returns (ok, detail).
+
+    ok is True when ntfy accepted the message. detail explains what the
+    ntfy server actually said, so the UI and logs show the real reason
+    for a failure instead of a generic message.
+    """
+    headers = {"Title": title, "Priority": priority, "Tags": tags}
+    if NTFY_TOKEN:
+        # ntfy.sh per-account quota or self-hosted server
+        headers["Authorization"] = f"Bearer {NTFY_TOKEN}"
     request = urllib.request.Request(
         f"{NTFY_SERVER}/{NTFY_TOPIC}",
         data=text.encode("utf-8"),
         method="POST",
-        headers={"Title": title, "Priority": priority, "Tags": tags},
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             ok = 200 <= response.status < 300
             print(f"[sent] {title}: {text} (HTTP {response.status})")
-            return ok
+            return ok, f"HTTP {response.status}"
+    except urllib.error.HTTPError as exc:
+        detail = f"HTTP {exc.code} from {NTFY_SERVER}"
+        try:
+            body = json.loads(exc.read().decode("utf-8", "replace"))
+            if body.get("error"):
+                detail += f" - {body['error']}"
+        except Exception:  # noqa: BLE001 - body may not be JSON
+            pass
+        print(f"[ERROR] Could not send '{title}': {detail}")
+        return False, detail
     except Exception as exc:  # noqa: BLE001 - report any network error
-        print(f"[ERROR] Could not send '{title}': {exc}")
-        return False
+        detail = f"{type(exc).__name__}: {exc}"
+        print(f"[ERROR] Could not send '{title}': {detail}")
+        return False, detail
+
+
+def topic_warning():
+    """Return a warning string if NTFY_TOPIC looks wrong, else None."""
+    if not re.fullmatch(r"[-_A-Za-z0-9]{1,64}", NTFY_TOPIC):
+        return (f"NTFY_TOPIC is '{NTFY_TOPIC}' -- topic names may only "
+                "contain letters, numbers, '-' and '_' (no spaces or "
+                "symbols), so ntfy will reject it.")
+    if NTFY_TOPIC == "my-alerts-x7k2pq":
+        return ("NTFY_TOPIC is not set -- using the fallback topic from "
+                "the code. Set the NTFY_TOPIC environment variable on "
+                "Render to the topic your phone is subscribed to.")
+    return None
 
 
 HINDI_QUOTES_URL = "https://hindi-quotes.vercel.app/random"
@@ -473,6 +507,8 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
     custom_display = "block" if days_mode == "custom" else "none"
     flash_html = (f'<div class="{"err" if flash_err else "ok"}">'
                   f'{e(flash)}</div>') if flash else ""
+    warn = topic_warning()
+    warn_html = f'<div class="err">{e(warn)}</div>' if warn else ""
     persistence = ("GitHub" if GITHUB_REPO else
                     "ephemeral -- changes are lost on restart/redeploy")
 
@@ -494,6 +530,7 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
 <p class="note">{len(messages)} message(s) &middot; times shown in IST
  &middot; storage: {e(persistence)}</p>
 {flash_html}
+{warn_html}
 <table>
 <tr><th>Time</th><th>Days</th><th>Message</th><th>Priority</th>
 <th></th></tr>
@@ -745,12 +782,12 @@ class AdminHandler(BaseHTTPRequestHandler):
                     m = messages[idx]
                 except (ValueError, IndexError):
                     return self._redirect("No such message.", flash_err=True)
-                ok = send_notification(message_text(m), m["title"],
-                                       m["priority"])
+                ok, detail = send_notification(message_text(m),
+                                               m["title"], m["priority"])
                 return self._redirect(
                     "Test notification sent - check your phone!"
                     if ok else
-                    "Could not send (check topic name / ntfy server).",
+                    f"Could not send: {detail}",
                     flash_err=not ok)
 
             return self._respond(render_error("Page not found."), status=404)

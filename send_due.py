@@ -34,8 +34,9 @@ from zoneinfo import ZoneInfo
 # Config
 # ------------------------------------------------------------------
 IST = ZoneInfo("Asia/Kolkata")
-NTFY_SERVER = "https://ntfy.sh"
+NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh")
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "my-alerts-x7k2pq")  # <-- CHANGE
+NTFY_TOKEN = os.environ.get("NTFY_TOKEN") or None  # optional access token
 MESSAGES_FILE = pathlib.Path(__file__).resolve().parent / "messages.json"
 WINDOW_MINUTES = int(os.environ.get("WINDOW_MINUTES", "5"))
 
@@ -48,11 +49,15 @@ DAY_ALIASES = {
 def send_notification(text, title="Reminder", priority="default",
                       tags="bell"):
     """POST a message to the ntfy topic. Returns True on success."""
+    headers = {"Title": title, "Priority": priority, "Tags": tags}
+    if NTFY_TOKEN:
+        # ntfy.sh per-account quota or self-hosted server
+        headers["Authorization"] = f"Bearer {NTFY_TOKEN}"
     request = urllib.request.Request(
         f"{NTFY_SERVER}/{NTFY_TOPIC}",
         data=text.encode("utf-8"),
         method="POST",
-        headers={"Title": title, "Priority": priority, "Tags": tags},
+        headers=headers,
     )
     with urllib.request.urlopen(request, timeout=10) as response:
         ok = 200 <= response.status < 300
