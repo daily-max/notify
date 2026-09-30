@@ -486,7 +486,20 @@ a{color:var(--accent);}
 .empty{color:var(--muted);font-size:.9rem;background:var(--card);
   border:1px dashed var(--line);border-radius:var(--radius);padding:24px;
   text-align:center;}
-section.form-wrap{margin-top:26px;}
+details.addbox{margin-top:26px;}
+summary.add-toggle{display:flex;align-items:center;justify-content:center;
+  gap:9px;list-style:none;width:100%;font-size:.95rem;font-weight:600;
+  padding:12px 16px;border-radius:10px;background:var(--accent);
+  color:var(--accent-ink);border:1px solid transparent;cursor:pointer;}
+summary.add-toggle::-webkit-details-marker{display:none;}
+summary.add-toggle::marker{content:"";}
+summary.add-toggle::before{content:"+";font-weight:700;font-size:1.05rem;}
+summary.add-toggle:hover{filter:brightness(1.08);}
+details.addbox[open] summary.add-toggle{background:var(--card);
+  color:var(--text);border-color:var(--line);margin-bottom:10px;}
+details.addbox[open] summary.add-toggle:hover{filter:none;
+  border-color:var(--muted);}
+details.addbox[open] summary.add-toggle::before{content:"\2013";}
 form.card{background:var(--card);border:1px solid var(--line);
   border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
 label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);
@@ -603,8 +616,8 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
 {''.join(cards) or '<li class="empty">No messages yet -- add one below.</li>'}
 </ul>
 
-<section class="form-wrap">
-<h2>{e(heading)}</h2>
+<details class="addbox"{' open' if edit_index is not None else ''}>
+<summary class="add-toggle">{e(heading)}</summary>
 <form method="post" action="/save" class="card">
  {hidden_id}
  <div class="row">
@@ -643,7 +656,7 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
  category or leave it on Any.</p>
  <button class="btn primary" type="submit">Save message</button>
 </form>
-</section>
+</details>
 </div>
 <script>
 (function(){{
