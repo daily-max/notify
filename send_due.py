@@ -36,7 +36,7 @@ from zoneinfo import ZoneInfo
 IST = ZoneInfo("Asia/Kolkata")
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh")
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "my-alerts-x7k2pqr")  # <-- CHANGE
-NTFY_TOKEN = os.environ.get("NTFY_TOKEN", "tk_7212gdsqju9flraqc2rcsfcqiqn7y") # or None  # optional access token
+NTFY_TOKEN = os.environ.get("NTFY_TOKEN") or None  # optional access token
 MESSAGES_FILE = pathlib.Path(__file__).resolve().parent / "messages.json"
 WINDOW_MINUTES = int(os.environ.get("WINDOW_MINUTES", "5"))
 
