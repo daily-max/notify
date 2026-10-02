@@ -35,8 +35,13 @@ from zoneinfo import ZoneInfo
 # ------------------------------------------------------------------
 IST = ZoneInfo("Asia/Kolkata")
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh")
-NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "my-alerts-x7k2pqr")  # <-- CHANGE
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "my-alerts-x7k2pq")  # <-- CHANGE
 NTFY_TOKEN = os.environ.get("NTFY_TOKEN") or None  # optional access token
+
+# Telegram (optional): when both are set, messages go via Telegram instead
+TELEGRAM_API = "https://api.telegram.org"
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or None
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or None
 MESSAGES_FILE = pathlib.Path(__file__).resolve().parent / "messages.json"
 WINDOW_MINUTES = int(os.environ.get("WINDOW_MINUTES", "5"))
 
@@ -46,9 +51,42 @@ DAY_ALIASES = {
 }
 
 
+def telegram_enabled():
+    """True when Telegram is configured (it then takes priority)."""
+    return bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
+
+
+def send_telegram(text, title="Reminder", priority="default"):
+    """POST a message via the Telegram Bot API. Returns True on success."""
+    url = f"{TELEGRAM_API}/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = json.dumps({
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": f"{title}\n{text}",
+        "disable_notification": priority in ("min", "low"),
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        url, data=payload, method="POST",
+        headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            ok = 200 <= response.status < 300
+            print(f"[sent] {title}: {text} "
+                  f"(Telegram HTTP {response.status})")
+            return ok
+    except Exception as exc:  # noqa: BLE001 - keep going, report it
+        print(f"[ERROR] Could not send '{title}' via Telegram: {exc}")
+        return False
+
+
 def send_notification(text, title="Reminder", priority="default",
                       tags="bell"):
-    """POST a message to the ntfy topic. Returns True on success."""
+    """Send a notification. Returns True on success.
+
+    Telegram is used when TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID are set;
+    otherwise the message goes to ntfy.
+    """
+    if telegram_enabled():
+        return send_telegram(text, title, priority)
     headers = {"Title": title, "Priority": priority, "Tags": tags}
     if NTFY_TOKEN:
         # ntfy.sh per-account quota or self-hosted server

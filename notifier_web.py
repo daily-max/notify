@@ -16,7 +16,11 @@ What's new in v3:
 
 Environment variables
 ---------------------
-  NTFY_TOPIC          ntfy topic to push to (required)
+  TELEGRAM_BOT_TOKEN  + TELEGRAM_CHAT_ID -- send via Telegram instead of
+                      ntfy (free; create a bot with @BotFather)
+  NTFY_TOPIC          ntfy topic to push to (used when Telegram is unset)
+  NTFY_SERVER         default "https://ntfy.sh"
+  NTFY_TOKEN          optional ntfy access token
   START_MESSAGE       startup push text (default "Notifier started - ...")
   SEND_STARTUP_MESSAGE  set to 0 to disable the startup push
   RUN_SCHEDULER       set to 0 for editor mode -- the interface only
@@ -57,6 +61,11 @@ IST = ZoneInfo("Asia/Kolkata")
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh")
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "my-alerts-x7k2pq")  # <-- CHANGE
 NTFY_TOKEN = os.environ.get("NTFY_TOKEN") or None  # optional access token
+
+# Telegram (optional): when both are set, messages go via Telegram instead
+TELEGRAM_API = "https://api.telegram.org"
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or None
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or None
 MESSAGES_FILE = pathlib.Path(__file__).resolve().parent / "messages.json"
 PORT = int(os.environ.get("PORT", "10000"))
 
@@ -88,14 +97,58 @@ SAVE_LOCK = threading.Lock()      # serialize edits + reloads
 # ------------------------------------------------------------------
 # Sending
 # ------------------------------------------------------------------
+def telegram_enabled():
+    """True when Telegram is configured (it then takes priority)."""
+    return bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
+
+
+def delivery_channel():
+    """Human label for the active delivery channel."""
+    return "Telegram" if telegram_enabled() else "ntfy"
+
+
+def send_telegram(text, title="Reminder", priority="default"):
+    """POST a message via the Telegram Bot API. Returns (ok, detail)."""
+    url = f"{TELEGRAM_API}/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = json.dumps({
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": f"{title}\n{text}",
+        "disable_notification": priority in ("min", "low"),
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        url, data=payload, method="POST",
+        headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            print(f"[sent] {title}: {text} "
+                  f"(Telegram HTTP {response.status})")
+            return True, f"Telegram HTTP {response.status}"
+    except urllib.error.HTTPError as exc:
+        detail = f"Telegram HTTP {exc.code}"
+        try:
+            err = json.loads(exc.read().decode("utf-8", "replace"))
+            if err.get("description"):
+                detail += f" - {err['description']}"
+        except Exception:  # noqa: BLE001 - body may not be JSON
+            pass
+        print(f"[ERROR] Could not send '{title}': {detail}")
+        return False, detail
+    except Exception as exc:  # noqa: BLE001 - report any network error
+        detail = f"{type(exc).__name__}: {exc}"
+        print(f"[ERROR] Could not send '{title}': {detail}")
+        return False, detail
+
+
 def send_notification(text, title="Reminder", priority="default",
                       tags="bell"):
-    """POST a message to the ntfy topic. Returns (ok, detail).
+    """Send a notification. Returns (ok, detail).
 
-    ok is True when ntfy accepted the message. detail explains what the
-    ntfy server actually said, so the UI and logs show the real reason
-    for a failure instead of a generic message.
+    Telegram is used when TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID are set;
+    otherwise the message goes to ntfy. detail explains what the service
+    actually said, so the UI and logs show the real reason for a failure.
     """
+    if telegram_enabled():
+        return send_telegram(text, title, priority)
     headers = {"Title": title, "Priority": priority, "Tags": tags}
     if NTFY_TOKEN:
         # ntfy.sh per-account quota or self-hosted server
@@ -128,7 +181,9 @@ def send_notification(text, title="Reminder", priority="default",
 
 
 def topic_warning():
-    """Return a warning string if NTFY_TOPIC looks wrong, else None."""
+    """Return a warning string if the delivery config looks wrong."""
+    if telegram_enabled():
+        return None                     # ntfy is not used in this mode
     if not re.fullmatch(r"[-_A-Za-z0-9]{1,64}", NTFY_TOPIC):
         return (f"NTFY_TOPIC is '{NTFY_TOPIC}' -- topic names may only "
                 "contain letters, numbers, '-' and '_' (no spaces or "
@@ -620,6 +675,7 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
    aria-label="Switch between light and dark mode" title="Light / dark">◐</button>
 </header>
 <p class="sub">{len(messages)} message(s) &middot; times in IST
+ &middot; delivery: {e(delivery_channel())}
  &middot; storage: {e(persistence)}</p>
 {flash_html}
 {warn_html}
