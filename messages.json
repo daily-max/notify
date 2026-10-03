@@ -41,5 +41,14 @@
     "title": "Wind down & plan tomorrow",
     "text": "Screens off soon - time to get ready for bed. Quick plan for tomorrow: basic needs, important tasks, special occasions.",
     "priority": "default"
+  },
+  {
+    "time": "11:40",
+    "title": "Vibe",
+    "text": "Whatup",
+    "priority": "high",
+    "days": "everyday",
+    "date": "10-03",
+    "quote": true
   }
 ]
