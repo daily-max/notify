@@ -680,6 +680,38 @@ def render_page(messages, edit_index=None, flash=None, flash_err=False):
     var saved = localStorage.getItem('notify-theme');
     if (saved) document.documentElement.setAttribute('data-theme', saved);
   }} catch (err) {{}}
+
+  // Closing the panel returns it to "Add a message" mode: the label goes
+  // back and the form is emptied, so saving then adds a new reminder
+  // instead of updating the one you had opened for editing.
+  try {{
+    var box = document.querySelector('details.addbox');
+    if (box) {{
+      var form = box.querySelector('form');
+      var summary = box.querySelector('summary');
+      box.addEventListener('toggle', function () {{
+        if (box.open || !form || !summary) return;
+        var hidden = form.querySelector('input[name="id"]');
+        if (hidden) hidden.remove();
+        summary.textContent = 'Add a message';
+        ['time', 'title', 'text', 'date', 'days_custom'].forEach(
+          function (name) {{
+            var el = form.querySelector('[name="' + name + '"]');
+            if (el) el.value = '';
+          }});
+        var prio = form.querySelector('[name="priority"]');
+        if (prio) prio.value = 'default';
+        var days = form.querySelector('[name="days_mode"]');
+        if (days) days.value = 'everyday';
+        var custom = form.querySelector('#custom_days');
+        if (custom) custom.style.display = 'none';
+        var quote = form.querySelector('[name="quote"]');
+        if (quote) quote.checked = false;
+        var cat = form.querySelector('[name="quote_category"]');
+        if (cat) cat.value = '';
+      }});
+    }}
+  }} catch (err) {{}}
 }})();
 function toggleTheme(){{
   var root = document.documentElement;
