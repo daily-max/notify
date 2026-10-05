@@ -510,7 +510,7 @@ details.addbox[open] summary.add-toggle{background:var(--card);
   color:var(--text);border-color:var(--line);margin-bottom:10px;}
 details.addbox[open] summary.add-toggle:hover{filter:none;
   border-color:var(--muted);}
-details.addbox[open] summary.add-toggle::before{content:"\2013";}
+details.addbox[open] summary.add-toggle::before{content:"–";}
 form.card{background:var(--card);border:1px solid var(--line);
   border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
 label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);
