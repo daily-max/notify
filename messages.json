@@ -15,13 +15,6 @@
     "priority": "default"
   },
   {
-    "time": "17:30",
-    "days": "everyday",
-    "title": "Evening break",
-    "text": "Take a short walk and have some water.",
-    "priority": "default"
-  },
-  {
     "time": "20:00",
     "days": "everyday",
     "title": "Drink water",
